@@ -1,0 +1,265 @@
+
+'   rp.wavv 2025-04-22
+'	Sheep! Catch the food for points but lose them if a wolf bites you! Progressivley more wolves each level.
+'   Based on the number grab game
+'
+'
+highScore = 0:f=0:nWolf=6:title=0
+'Musical array
+dim arp(10)
+arp(1)=100
+arp(2)=200
+arp(3)=300
+arp(4)=400
+arp(5)=500
+arp(6)=800
+arp(7)=1600
+arp(8)=2400
+arp(9)=3200
+arp(10)=4000
+call TitleScreen()
+
+repeat
+    if title then call TitleScreen():nWolf=6
+    nWolf=nWolf + 1
+	call init()
+	call gameplay()	
+	call ScoreScreen()
+until 0
+end
+
+'
+'	Gameplay
+'
+proc gameplay()
+	repeat
+		if event(tClock,100) then call UpdateTimer()
+		if event(tPlayer,3) then call MovePlayer()
+        if event(tWolf,250) then for i = 7 to nWolf call setWolf(i):next
+        if event(tCollision,45) then call collCheck()	
+	until seconds = 60
+endproc
+
+'
+' New game initialize 
+'
+proc init()
+	cls:sprite clear:palette 0,178,255,153
+	gload "sheep.gfx"
+	seconds = 0:tClock = 0:tPlayer = 0:tWolf = 0:tCollision = 0
+    score = 0
+    title=0
+    call UpdateScore()
+	xPlayer = 150:yPlayer = 120:sprite 0 image $96 to xPlayer,yPlayer:framteToggle = 0
+    for n = 1 to 3:call grassSetup(n):next
+    for n = 4 to 5:call flowerSetup(n):next
+    call veggieSetup(6)
+    for n = 7 to nWolf:call setWolf(n):next
+    if nWolf=13 then title=1
+endproc
+
+'
+' Timer and score from numbergrab example game
+'
+proc UpdateTimer()
+	seconds = seconds + 1
+	rect solid ink 7 from 190,6 to 312,14 ink 1 from 191,7 to 191+seconds*2,13
+    if seconds = 55 then sound 1 clear:sfx 0,18
+endproc
+'
+proc UpdateScore()
+    if score >= 0 then text right$("0000"+str$(score),4) solid dim 2 ink 11 to 160-24,2
+    if score < 0 then score = 0
+endproc
+
+'
+'	Player moves and animations
+'
+proc MovePlayer()
+	local fire, dx, dy, f
+	img = $94
+	fire = joypad(dx, dy)
+	xPlayer = min(312,max(8,xPlayer + dx * 4)): yPlayer = min(232,max(24,yPlayer + dy * 4))
+
+	' Only animate if moving
+	if dx <> 0 | dy <> 0 then
+		' Flip frameToggle
+		frameToggle = frameToggle + 1
+		if frameToggle = 6 then frameToggle = 0
+
+		' Select sprite image based on direction and frameToggle
+		if dy > 0 then img = $83 + frameToggle:f = 0        ' Down, no flip
+		if dy < 0 then img = $93 + frameToggle:f = 0        ' Up, no flip
+		if dx < 0 then img = $8B + frameToggle:f = 1        ' Left, flip horizontal
+		if dx > 0 then img = $8B + frameToggle:f = 0        ' Right, no flip
+
+		sprite 0 image img flip f
+	endif
+
+	sprite 0 to xPlayer, yPlayer
+    
+    '
+    'Food sprite points
+    for i = 1 to 3
+        if hit(0,i,12)
+			score = score + 1 
+			call UpdateScore()
+            call grassSetup(i)
+            call soundFx_01()
+        endif
+    next
+
+    '
+    for i = 4 to 5
+        if hit(0,i,12)
+			score = score + 2 
+			call UpdateScore()
+            call flowerSetup(i)
+            call soundFx_01()
+        endif
+    next
+
+
+    if hit(0,6,12)
+        score = score + 3
+        call UpdateScore()
+        call veggieSetup(6)
+        call soundFx_01()
+    endif
+
+    '
+    'Wolf hits
+    for i = 7 to nWolf
+        if hit(0,i,24)
+            score = score - 10
+            call UpdateScore()
+            call setWolf(i)
+            sound 0 clear:sfx 0,4
+        endif
+    next
+endproc
+
+'
+'   Food setup
+'
+proc grassSetup(n)
+    sprite n image $AF to rand(300)+10,rand(208)+24
+endproc
+
+proc flowerSetup(n)
+    sprite n image $B0 to rand(300)+10,rand(208)+24
+endproc
+
+proc veggieSetup(n)
+    sprite n image $B1 to rand(300)+10,rand(208)+24
+endproc
+
+'
+'  Wolf setup
+'
+proc setWolf(n)
+    if wolf = 1
+        wolf = 0
+    else
+        wolf = 1
+    endif
+
+    sprite n image $C0 flip wolf to rand(300)+10,rand(208)+24
+endproc
+
+'
+'   Collision check with other sprites
+'
+proc collCheck()
+    for n = 1 to nWolf
+        for i = 1 to nWolf
+            if i = n
+                'do nothing
+            else
+                if hit(n,i,24) then sprite n to rand(300)+10,rand(208)+24
+            endif
+        next
+    next
+endproc
+
+'
+' Sound FX for point gain
+'
+proc soundFx_01()
+    for i=1 to 4
+        x=100*i
+        wait 3
+        sound 0 clear x,5
+    next
+endproc
+
+'
+'   TItle Screen
+'
+proc TitleScreen()
+    cls:sprite clear:palette clear
+    palette 0,102,255,255
+    gload "sheep.gfx"
+
+    for m = 1 to 5
+        'noise 0 clear arp(m),20
+        sound 1 clear arp(m),20
+        wait 10
+    next 
+
+    for m = 4 downto 1
+        'noise 0 clear arp(m),20
+        sound 1 clear arp(m),20
+        wait 10
+    next 
+
+    sprite 1 image $B1 to 85,120
+    sprite 2 image $Af to 109,120
+    sprite 3 image $B0 to 133,120
+    sprite 4 image $96 to 157,120
+    sprite 5 image $Af to 181,120
+    sprite 6 image $B0 to 205,120
+    sprite 7 image $B1 to 229,120
+    sprite 8 image $C0 to 150,190
+	text "Sheep!" dim 2 ink 7 to 125,65
+    text "Catch a bite but don't get bitten!" dim 1 ink 5 to 60,90
+	'text "Press to start again" dim 1 ink 11 to 96,170
+	wait 200
+
+    repeat:until key(79) <> 0|key(80) <> 0|key(81) <> 0|key(82) <> 0
+endproc
+
+
+'
+'	Score screen
+'
+proc ScoreScreen()
+	cls:sprite clear:palette clear
+
+    for m = 5 downto 1
+        'noise 0 clear arp(m),20
+        sound 1 clear arp(m),20
+        wait 10
+    next 
+
+
+
+    sprite 1 image $Af to 85,210
+    text "x 1" dim 1 ink 11 to 95,210
+    sprite 2 image $B0 to 153,210
+    text "x 2" dim 1 ink 11 to 162,210
+    sprite 3 image $B1 to 216,210
+    text "x 3" dim 1 ink 11 to 226,210
+    if score > highScore then highScore = score
+	msg$ = "You got a score of: " + str$(score)
+	text msg$ dim 2 ink 5 to 24,100
+    msg2$ = "Your current high score: " + str$(highScore)
+    text msg2$ dim 1 ink 6 to 72,129
+	wait 100
+	repeat
+        text "Press to start again" dim 1 ink 11 to 96,170
+        wait 20
+        text "Press to start again" dim 1 ink 0 to 96,170
+        wait 20
+    until key(79) <> 0|key(80) <> 0|key(81) <> 0|key(82) <> 0
+endproc
